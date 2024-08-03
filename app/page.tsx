@@ -80,6 +80,9 @@ export default function Home() {
       const itemDoc = doc(db, 'expenses', id);
       await updateDoc(itemDoc, { amount: currentAmount - 1 });
     }
+    else {
+      deleteItem(id);
+    }
   };
 
   return (
