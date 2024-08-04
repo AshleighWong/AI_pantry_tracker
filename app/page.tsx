@@ -1,42 +1,48 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { addDoc, collection, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, updateDoc, getDocs, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { onSnapshot, query } from 'firebase/firestore';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { ScrollArea } from "@/components/ui/scroll-area"
+import axios from 'axios';
 
 
+
+
+interface Item {
+  name: any;
+  amount: any;
+  id?: any;
+}
 
 export default function Home() {
 
-  const [items, setItems] = useState([
-    // { name: 'Coffee', amount: 3 },
-    // { name: 'Lunch', amount: 12 },
-    // { name: 'dinner', amount: 25 },
-    // { name: 'snack', amount: 5 },
-    // { name: 'breakfast', amount: 8 },
-    // { name: 'lunch', amount: 12 },
-    // { name: 'dinner', amount: 20 },
-    // { name: 'snack', amount: 5 },
-    // { name: 'breakfast', amount: 8 },
-    // { name: 'lunch', amount: 12 },
-    // { name: 'dinner', amount: 20 },
-    // { name: 'snack', amount: 5 },
-    // { name: 'breakfast', amount: 8 },
-  ]);
+  const [items, setItems] = useState<Item[]>([]);
 
-  const [newItem, setNewItem] = useState({ name: '', amount: '' });
+  const [newItem, setNewItem] = useState<Item>({ name: '', amount: '' });
 
   //add items to database
-  const addItem = async (e) => {
+  const addItem = async (e: any) => {
     e.preventDefault();
     if (newItem.name !== '' && newItem.amount !== '') {
-      //setItems([...items, newItem])
-      await addDoc(collection(db, 'expenses'), {
-        name: newItem.name.trim(),
-        amount: newItem.amount,
-      });
+      const q = query(collection(db, 'expenses'), where('name'.toLowerCase(), '==', newItem.name.trim().toLowerCase()));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        // If item exists, update the quantity
+        const itemDoc = querySnapshot.docs[0];
+        const currentAmount = itemDoc.data().amount;
+        await updateDoc(doc(db, 'expenses', itemDoc.id), {
+          amount: currentAmount + parseInt(newItem.amount),
+        });
+      } else {
+        // If item does not exist, add new item
+        await addDoc(collection(db, 'expenses'), {
+          name: newItem.name.trim().toLowerCase(),
+          amount: parseInt(newItem.amount),
+        });
+      }
       setNewItem({ name: '', amount: '' });
     }
   };
@@ -45,7 +51,7 @@ export default function Home() {
   useEffect(() => {
     const q = query(collection(db, 'expenses'))
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      let itemsArr = [];
+      let itemsArr: any = [];
       querySnapshot.forEach((doc) => {
         itemsArr.push({ ...doc.data(), id: doc.id });
       });
@@ -57,25 +63,18 @@ export default function Home() {
   }, [])
 
   //delete items from database
-  const deleteItem = async (id) => {
+  const deleteItem = async (id: string) => {
     await deleteDoc(doc(db, 'expenses', id));
   }
 
-  interface ItemProps {
-    id: string;
-    name: string;
-    amount: number;
-    currentAmount: number;
-  }
-
   // Increment item quantity
-  const incrementItem = async (id, currentAmount) => {
+  const incrementItem = async (id: string, currentAmount: number) => {
     const itemDoc = doc(db, 'expenses', id);
     await updateDoc(itemDoc, { amount: currentAmount + 1 });
   };
 
   // Decrement item quantity
-  const decrementItem = async (id, currentAmount) => {
+  const decrementItem = async (id: string, currentAmount: number) => {
     if (currentAmount > 1) {
       const itemDoc = doc(db, 'expenses', id);
       await updateDoc(itemDoc, { amount: currentAmount - 1 });
@@ -120,7 +119,9 @@ export default function Home() {
             ))}
           </div>
         </ScrollArea>
+        <button className="text-white bg-slate-800 p-4 mt-10">Generate Recipies</button>
       </div>
+
     </div>
   )
 }
